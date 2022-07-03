@@ -15,12 +15,14 @@
     "watch": "npm run build && npm link && nodemon",
     "build": "rimraf ./dist && tsc",
     "prepublishOnly": "npm run lint && npm run build",
+    "setup": "curl -s -O https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv",
     "dev": "npx ts-node src/index.ts"
   },
   "dependencies": {
     "express": "^4.16.1",
     "dotenv": "^16.0.0",
-    "prom-client": "^14.0.0"
+    "prom-client": "^14.0.0",
+    "csv-parse": "^5.2.0"
   },
   "keywords": [
     "monitoring",

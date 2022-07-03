@@ -1,8 +1,12 @@
 import express, { Express, Request, Response } from 'express';
 import { Registry, Gauge } from 'prom-client';
+import * as fs from 'fs';
+import * as path from 'path';
+import { parse } from 'csv-parse/sync';
 
 
 const config = require('../config.json');
+const csvFile = '../syukujitsu.csv';
 
 const app: Express = express();
 
@@ -15,7 +19,7 @@ enum Days {
     WEDNESDAY,
     THURSDAY,
     FRIDAY,
-    SATURDAY,
+    SATURDAY
 }
 
 const port: number = config.server.port != null
@@ -38,22 +42,39 @@ registry.registerMetric( new Gauge({
     labelNames: ['supplier', 'plan', 'currency'],
 }) );
 
+async function isHoliday(date: Date): Promise<boolean> {
+    const csvFilePath = path.resolve(__dirname, csvFile);
+    const csvContent = fs.readFileSync(csvFilePath, {encoding: 'utf-8'});
+
+    const today = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+
+    const records = parse(csvContent, {delimiter: ',', from_line: 2});
+    for(const row of records) {
+        if(today === row[0]) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 app.get('/metrics', async (req: Request, res: Response) => {
     try {
-        const now = new Date();
-        const nowDay = Days[now.getDay()].toLowerCase();
-        const nowTime =(now.getHours()*100) + now.getMinutes();
-
-        const dayRates = config["rates"][nowDay];
-
         let registryMetric = {};
 
+        const now = new Date();
+        const nowTime =(now.getHours()*100) + now.getMinutes();
+        const nowDay = await isHoliday(now) === true
+            ? 'holiday'
+            : Days[now.getDay()].toLowerCase();
+        const dayRates = config["rates"][nowDay];
+        
         for (const direction of ["buy", "sell"]) {
             let rate = 0;
-            for (var rateTime in dayRates[direction]) {
-                if (nowTime.toString() >= rateTime) {
-                    rate = dayRates[direction][rateTime];
+            for (var time of Object.keys(dayRates[direction]).sort()) {
+                const rateTime: number = +time;
+                if (nowTime >= rateTime) {
+                    rate = dayRates[direction][time];
                 }
             };
  
